@@ -63,36 +63,44 @@ static int os_http_post(const char *url,
     [request setHTTPBody:postData];
 
     // send
-    NSError *error = nil;
-    NSHTTPURLResponse *response = nil;
-    NSData *resData = [NSURLConnection sendSynchronousRequest:request returningResponse:&response error:&error];
-    if(response != nil){
-        int responseCode = (int)[response statusCode];
-        NSDictionary *fields = [response allHeaderFields];
-        NSString *timeVal = fields[@"x-log-time"];
-        if ([timeVal length] != 0) {
-            NSInteger serverTime = [timeVal integerValue];
-            if (serverTime > 1500000000 && serverTime < 4294967294) {
-                [TimeUtils updateServerTime:serverTime];
+    dispatch_semaphore_t sem = dispatch_semaphore_create(0);
+    __block int returnCode;
+    NSURLSessionDataTask *task = [[NSURLSession sharedSession] dataTaskWithRequest:request completionHandler:^(NSData * _Nullable data, NSURLResponse * _Nullable response, NSError * _Nullable error) {
+        if (response != nil) {
+            NSHTTPURLResponse *httpResponse = (NSHTTPURLResponse *)response;
+            int responseCode = (int)[httpResponse statusCode];
+            NSDictionary *fields = [httpResponse allHeaderFields];
+            NSString *timeVal = fields[@"x-log-time"];
+            if ([timeVal length] != 0) {
+                NSInteger serverTime = [timeVal integerValue];
+                if (serverTime > 1500000000 && serverTime < 4294967294) {
+                    [TimeUtils updateServerTime:serverTime];
+                }
             }
+            if (responseCode != 200) {
+                NSString *res = [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
+                SLSLog(@"%@: %ld %@ %@", VERSION, [httpResponse statusCode], [httpResponse allHeaderFields], res);
+            }
+            returnCode = responseCode;
         }
-        if (responseCode != 200) {
-            NSString *res = [[NSString alloc] initWithData:resData encoding:NSUTF8StringEncoding];
-            SLSLog(@"%@: %ld %@ %@", VERSION, [response statusCode], [response allHeaderFields], res);
+        else {
+            if (error != nil) {
+                NSString *res = [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
+                SLSLog(@"%@: error: %@, res:%@", VERSION, error, res);
+                if (error.code == NSURLErrorUserCancelledAuthentication) {
+                    returnCode = 401;
+                } else if (error.code == NSURLErrorBadServerResponse) {
+                    returnCode = 500;
+                }
+            }
+            returnCode = -1;
         }
-        return responseCode;
-    }
-    else {
-        if(error != nil){
-            NSString *res = [[NSString alloc] initWithData:resData encoding:NSUTF8StringEncoding];
-            SLSLog(@"%@: error: %@, res:%@", VERSION, error, res);
-            if (error.code == kCFURLErrorUserCancelledAuthentication)
-                return 401;
-            if (error.code == kCFURLErrorBadServerResponse)
-                return 500;
-        }
-        return -1;
-    }
+        dispatch_semaphore_signal(sem);
+    }];
+    [task resume];
+    dispatch_semaphore_wait(sem, DISPATCH_TIME_FOREVER);
+
+    return returnCode;
 }
 
 + (void)load{

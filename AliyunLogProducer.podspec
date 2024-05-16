@@ -30,6 +30,7 @@ https://help.aliyun.com/product/28958.html
   s.social_media_url = 'http://t.cn/AiRpol8C'
 
   s.ios.deployment_target = '9.0'
+  s.watchos.deployment_target = '9.0'
 #  s.osx.deployment_target =  '10.8'
 #  s.tvos.deployment_target =  '9.0'
 
@@ -43,6 +44,7 @@ https://help.aliyun.com/product/28958.html
     c.ios.deployment_target = '9.0'
     c.tvos.deployment_target =  '9.0'
     c.osx.deployment_target =  '10.8'
+    c.watchos.deployment_target = '9.0'
     c.source_files =
       'AliyunLogProducer/AliyunLogProducer/*.{h,m}',
       'AliyunLogProducer/aliyun-log-c-sdk/src/*.{c,h}',

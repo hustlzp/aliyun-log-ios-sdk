@@ -37,7 +37,7 @@ static NSTimeInterval elapsedRealtime = 0;
     [request setURL:[NSURL URLWithString:urlString]];
     [request addValue:@"0.6.0" forHTTPHeaderField:@"x-log-apiversion"];
     
-    [NSURLConnection sendAsynchronousRequest:request queue:[NSOperationQueue mainQueue] completionHandler:^(NSURLResponse * _Nullable response, NSData * _Nullable data, NSError * _Nullable connectionError) {
+    NSURLSessionDataTask *task = [[NSURLSession sharedSession] dataTaskWithRequest:request completionHandler:^(NSData * _Nullable data, NSURLResponse * _Nullable response, NSError * _Nullable error) {
         if (response != nil) {
             NSHTTPURLResponse *httpResponse = response;
             NSDictionary *fields = [httpResponse allHeaderFields];
@@ -50,6 +50,7 @@ static NSTimeInterval elapsedRealtime = 0;
             }
         }
     }];
+    [task resume];
 }
 
 +(void) updateServerTime: (NSInteger) timeInMillis
